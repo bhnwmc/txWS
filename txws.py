@@ -230,7 +230,7 @@ def mask(buf, key):
         buf[i] ^= key[i % 4]
     return buf.tostring()
 
-def make_hybi07_frame(buf, opcode=0x1):
+def make_hybi07_frame(buf, opcode=0x1, end = 0x80):
     """
     Make a HyBi-07 frame.
 
@@ -248,8 +248,8 @@ def make_hybi07_frame(buf, opcode=0x1):
     if isinstance(buf, six.text_type):
         buf = buf.encode('utf-8')
 
-    # Always make a normal packet.
-    header = chr(0x80 | opcode)
+    # Always make a normal packet if end is 0x80.
+    header = chr(end | opcode)
     return six.b(header + length) + buf
 
 def make_hybi07_frame_dwim(buf):
@@ -508,10 +508,13 @@ class WebSocketProtocol(ProtocolWrapper):
             raise WSException("Unknown flavor %r" % self.flavor)
 
         for frame in self.pending_frames:
+            iscontinuosFrame = type(frame) == list
+            if iscontinuosFrame == True:
+                frame, end, opcode = frame
             # Encode the frame before sending it.
             if self.codec:
                 frame = encoders[self.codec](frame)
-            packet = maker(frame)
+            packet = maker(frame) if iscontinuosFrame != True else maker(frame, opcode = opcode, end = end)
             self.writeEncoded(packet)
         self.pending_frames = []
 
@@ -668,6 +671,22 @@ class WebSocketProtocol(ProtocolWrapper):
         """
 
         self.pending_frames.extend(data)
+        self.sendFrames()
+
+    def writePartition(self, data, payload_length = 0x7d):
+        """
+        Partition data to a maximum size of payload_length and
+        write a continuous frame data sequence to the transport.
+
+        This method will only be called by the underlying protocol.
+
+        Only suport RFC 6455. the official WebSocket protocol standard and text frame.
+        """
+        pdata_frame = [ [data[i:i+payload_length], 0x00, 0x00] for i in range(0, len(data), payload_length) ]
+        #first and last frame
+        pdata_frame[0][2]  = 0x01 #Text frame
+        pdata_frame[-1][1] = 0x80 #End frame
+        self.pending_frames.extend(pdata_frame)
         self.sendFrames()
 
     def close(self, reason=""):
