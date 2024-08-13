@@ -13,17 +13,20 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-from setuptools import setup
+from setuptools import setup, find_packages
+
+with open('version.txt', 'r') as f:
+    version = f.read().strip()
 
 setup(
     name="txWS",
     py_modules=["txws"],
     setup_requires=["vcversioner", "six"],
-    vcversioner={},
-    author="Corbin Simpson",
-    author_email="simpsoco@osuosl.org",
+    version=version,
+    author="Lakpa Team",
+    author_email="admin-tec@lakpa.cl",
     description="Twisted WebSockets wrapper",
     long_description=open("README.rst").read(),
     license="MIT/X11",
-    url="http://github.com/MostAwesomeDude/txWS",
+    url="http://github.com/Lakpa-Team/txWS.git",
 )
